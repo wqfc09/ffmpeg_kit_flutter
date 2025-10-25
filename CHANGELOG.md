@@ -1,3 +1,7 @@
+## 4.1.0
+
+* Fixed the FFmpeg 8.0 compatibility issue across all platforms. The problem was that `all_channel_counts` was being set AFTER the filter was created, but FFmpeg 8.0 requires it to be set DURING filter creation.
+
 ## 4.0.0
 
 * FFmpeg `v8.0.0` with [all the sweet perks](https://ffmpeg.org/index.html#news)
