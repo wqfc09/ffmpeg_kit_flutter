@@ -16,6 +16,7 @@ buildscript {
 allprojects {
     repositories {
         google()
+        mavenLocal()
         mavenCentral()
     }
 }
@@ -48,9 +49,16 @@ android {
         versionCode 1
         versionName "1.0.0"
     }
+}
 
-    dependencies {
-        implementation("androidx.annotation:annotation:1.9.1")
+dependencies {
+    implementation("androidx.annotation:annotation:1.9.1")
+
+    def localAar = file("$projectDir/libs/ffmpeg-kit-custom.aar")
+    if (localAar.exists()) {
+        implementation(files(localAar))
+    } else {
+        // 本地 AAR 不存在时，回退到远程依赖，避免仓库首次拉取无法编译
         implementation("com.antonkarpenko:ffmpeg-kit-full-gpl:2.1.0")
     }
 }
