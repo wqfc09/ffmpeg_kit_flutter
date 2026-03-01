@@ -53,7 +53,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             build-essential git autoconf automake libtool pkg-config \
-            cmake gperf bison flex nasm yasm curl unzip
+            cmake gperf bison flex nasm yasm curl unzip meson ninja-build
 
       - name: Build with Custom Flags
         env:
