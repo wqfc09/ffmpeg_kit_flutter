@@ -1,0 +1,76 @@
+name: FFmpeg-LGPL3-General
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/LGPL3-android-ffmpeg.yml"
+      - ".github/workflows/LGPL3-xframework-ffmpeg.yml"
+      - ".github/workflows/LGPL3-desktop-ffmpeg.yml"
+      - ".github/workflows/LGPL3-general-ffmpeg.yml"
+
+jobs:
+  run-android:
+    name: Run Android Workflow
+    uses: ./.github/workflows/LGPL3-android-ffmpeg.yml
+    secrets: inherit
+
+  run-ios:
+    name: Run iOS Workflow
+    uses: ./.github/workflows/LGPL3-xframework-ffmpeg.yml
+    secrets: inherit
+
+  run-desktop:
+    name: Run Desktop Workflow
+    uses: ./.github/workflows/LGPL3-desktop-ffmpeg.yml
+    secrets: inherit
+
+  publish-general:
+    name: Publish General Release
+    needs: [run-android, run-ios, run-desktop]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download Android Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ffmpeg-kit-android-custom
+          merge-multiple: true
+          path: release-assets/android
+
+      - name: Download iOS Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: ffmpeg-kit-ios-custom
+          merge-multiple: true
+          path: release-assets/ios
+
+      - name: Download Desktop Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-desktop-*
+          merge-multiple: true
+          path: release-assets/desktop
+
+      - name: Check Release Assets
+        run: |
+          set -euo pipefail
+          find release-assets -maxdepth 3 -type f | sort
+          test -n "$(find release-assets -type f -print -quit)"
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
+          tag_name: General
+          name: General FFmpeg
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          overwrite_files: true
+          files: |
+            release-assets/android/*
+            release-assets/ios/*
+            release-assets/desktop/*

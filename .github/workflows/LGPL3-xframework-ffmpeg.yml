@@ -5,9 +5,7 @@ permissions:
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/LGPL3-xframework-ffmpeg.yml"
+  workflow_call:
 
 jobs:
   build-ios:
@@ -88,20 +86,21 @@ jobs:
         id: release_meta
         run: |
           set -euo pipefail
-          SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="ios-custom-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
-          NAME="iOS FFmpeg Kit Custom (${SHORT_SHA})"
+          TAG="ios"
+          NAME="iOS FFmpeg Kit Custom"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
           tag_name: ${{ steps.release_meta.outputs.tag }}
           name: ${{ steps.release_meta.outputs.name }}
           target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
+          overwrite_files: true
           files: |
             ffmpegkit-ios-xcframework.zip
             build.log

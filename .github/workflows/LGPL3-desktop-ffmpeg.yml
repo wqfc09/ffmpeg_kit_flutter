@@ -5,9 +5,7 @@ permissions:
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - ".github/workflows/LGPL3-desktop-ffmpeg.yml"
+  workflow_call:
 
 jobs:
   build-linux-windows:
@@ -308,25 +306,12 @@ jobs:
           cp -a /home/runner/publish/bin/ffprobe* "$PACKAGE_DIR/${{ matrix.target }}/bin/"
           tar -czf ffmpeg-desktop-${{ matrix.target }}-n8.0.1.tar.gz -C "$PACKAGE_DIR" "${{ matrix.target }}"
 
-      - name: Generate Release Metadata
-        id: release_meta
-        run: |
-          set -euo pipefail
-          SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="desktop-${{ matrix.target }}-n8.0.1-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
-          NAME="Desktop FFmpeg n8.0.1 (${{ matrix.target }}, ${SHORT_SHA})"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
-
-      - name: Publish to GitHub Release
-        uses: softprops/action-gh-release@v2
+      - name: Upload Packed Desktop Artifact
+        uses: actions/upload-artifact@v4
         with:
-          tag_name: ${{ steps.release_meta.outputs.tag }}
-          name: ${{ steps.release_meta.outputs.name }}
-          target_commitish: ${{ github.sha }}
-          prerelease: true
-          generate_release_notes: true
-          files: |
+          name: release-desktop-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
             ffmpeg-desktop-${{ matrix.target }}-n8.0.1.tar.gz
 
   build-macos:
@@ -391,27 +376,45 @@ jobs:
           set -euo pipefail
           PACKAGE_DIR="$(mktemp -d)"
           mkdir -p "$PACKAGE_DIR/macos/bin"
-          cp -a /Users/runner/publish/bin/ffmpeg* "$PACKAGE_DIR/macos/bin/"
-          cp -a /Users/runner/publish/bin/ffprobe* "$PACKAGE_DIR/macos/bin/"
+          cp -f /Users/runner/publish/bin/ffmpeg* "$PACKAGE_DIR/macos/bin/"
+          cp -f /Users/runner/publish/bin/ffprobe* "$PACKAGE_DIR/macos/bin/"
           tar -czf ffmpeg-desktop-macos-n8.0.1.tar.gz -C "$PACKAGE_DIR" macos
 
-      - name: Generate Release Metadata
-        id: release_meta
+      - name: Upload Packed macOS Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-desktop-macos
+          if-no-files-found: error
+          path: |
+            ffmpeg-desktop-macos-n8.0.1.tar.gz
+
+  release-desktop:
+    name: Publish Desktop Release
+    needs: [build-linux-windows, build-macos]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download Packed Desktop Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: release-desktop-*
+          merge-multiple: true
+          path: release-assets
+
+      - name: Check Release Assets
         run: |
           set -euo pipefail
-          SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="desktop-macos-n8.0.1-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
-          NAME="Desktop FFmpeg n8.0.1 (macOS, ${SHORT_SHA})"
-          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+          ls -lah release-assets
+          test -n "$(find release-assets -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.release_meta.outputs.tag }}
-          name: ${{ steps.release_meta.outputs.name }}
+          token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
+          tag_name: desktop
+          name: Desktop FFmpeg
           target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
+          overwrite_files: true
           files: |
-            ffmpeg-desktop-macos-n8.0.1.tar.gz
+            release-assets/*.tar.gz
