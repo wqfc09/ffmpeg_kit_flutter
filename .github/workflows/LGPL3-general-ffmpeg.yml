@@ -54,43 +54,53 @@ jobs:
         run: |
           set -euo pipefail
           find release-assets -maxdepth 3 -type f | sort
-          test -n "$(find release-assets -type f -print -quit)"
+          test -f release-assets/desktop/ffmpeg-desktop-windows-n8.0.1.tar.gz
+          test -f release-assets/desktop/ffmpeg-desktop-macos-n8.0.1.tar.gz
+          test -f release-assets/desktop/ffmpeg-desktop-linux-n8.0.1.tar.gz
+          test -f release-assets/android/ffmpegkit-android-aar.tar.gz
+          test -f release-assets/android/android-build.log
+          test -f release-assets/ios/ffmpegkit-ios-xcframework.zip
+          test -f release-assets/ios/ios-build.log
 
-      - name: Prepare All Release Files
+      - name: Generate All Release Metadata
+        id: release_meta
         run: |
           set -euo pipefail
-          SHORT_SHA="${GITHUB_SHA::7}"
-          STAMP="${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
-          mkdir -p release-publish
-
-          while IFS= read -r file; do
-            rel="${file#release-assets/}"
-            platform="${rel%%/*}"
-            base="$(basename "$file")"
-            cp "$file" "release-publish/${platform}-${STAMP}-${base}"
-          done < <(find release-assets -type f | sort)
-
-          tar -czf "ffmpeg-all-${STAMP}.tar.gz" -C release-assets .
+          SHORT_SHA="${GITHUB_SHA::8}"
+          TAG="all-${SHORT_SHA}"
+          NAME="All FFmpeg (${SHORT_SHA})"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload General Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-general-bundle
+          name: ffmpeg-general-files
           if-no-files-found: error
           path: |
-            release-publish/*
-            ffmpeg-all-*.tar.gz
+            release-assets/desktop/ffmpeg-desktop-windows-n8.0.1.tar.gz
+            release-assets/desktop/ffmpeg-desktop-macos-n8.0.1.tar.gz
+            release-assets/desktop/ffmpeg-desktop-linux-n8.0.1.tar.gz
+            release-assets/android/ffmpegkit-android-aar.tar.gz
+            release-assets/android/android-build.log
+            release-assets/ios/ffmpegkit-ios-xcframework.zip
+            release-assets/ios/ios-build.log
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
-          tag_name: all
-          name: All FFmpeg
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
           target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
           overwrite_files: false
           files: |
-            release-publish/*
-            ffmpeg-all-*.tar.gz
+            release-assets/desktop/ffmpeg-desktop-windows-n8.0.1.tar.gz
+            release-assets/desktop/ffmpeg-desktop-macos-n8.0.1.tar.gz
+            release-assets/desktop/ffmpeg-desktop-linux-n8.0.1.tar.gz
+            release-assets/android/ffmpegkit-android-aar.tar.gz
+            release-assets/android/android-build.log
+            release-assets/ios/ffmpegkit-ios-xcframework.zip
+            release-assets/ios/ios-build.log
