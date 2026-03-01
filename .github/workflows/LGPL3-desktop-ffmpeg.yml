@@ -204,10 +204,17 @@ jobs:
           meson compile -C dav1d_build
           meson install -C dav1d_build
 
-          if [ ! -f "$HOME/target_build/lib/pkgconfig/dav1d.pc" ]; then
+          DAV1D_PC="$(find "$HOME/target_build" -type f -path "*/pkgconfig/dav1d.pc" | head -n 1 || true)"
+          if [ -z "$DAV1D_PC" ]; then
             echo "dav1d.pc 未生成，安装目录如下："
             find "$HOME/target_build" -maxdepth 3 -type f | sort
             exit 1
+          fi
+
+          echo "Using dav1d.pc: $DAV1D_PC"
+          mkdir -p "$HOME/target_build/lib/pkgconfig"
+          if [ "$DAV1D_PC" != "$HOME/target_build/lib/pkgconfig/dav1d.pc" ]; then
+            cp "$DAV1D_PC" "$HOME/target_build/lib/pkgconfig/dav1d.pc"
           fi
 
       # 5. 安装硬件头文件
