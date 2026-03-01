@@ -170,21 +170,20 @@ jobs:
           git clone --branch 1.5.1 --depth 1 https://github.com/videolan/dav1d.git
 
           if [ "${{ matrix.target }}" = "windows" ]; then
-            cat > dav1d-mingw.ini <<'EOF'
-            [binaries]
-            c = 'x86_64-w64-mingw32-gcc'
-            cpp = 'x86_64-w64-mingw32-g++'
-            ar = 'x86_64-w64-mingw32-gcc-ar'
-            strip = 'x86_64-w64-mingw32-strip'
-            windres = 'x86_64-w64-mingw32-windres'
-            pkgconfig = 'pkg-config'
-
-            [host_machine]
-            system = 'windows'
-            cpu_family = 'x86_64'
-            cpu = 'x86_64'
-            endian = 'little'
-            EOF
+            printf '%s\n' \
+              '[binaries]' \
+              "c = 'x86_64-w64-mingw32-gcc'" \
+              "cpp = 'x86_64-w64-mingw32-g++'" \
+              "ar = 'x86_64-w64-mingw32-gcc-ar'" \
+              "strip = 'x86_64-w64-mingw32-strip'" \
+              "windres = 'x86_64-w64-mingw32-windres'" \
+              "pkgconfig = 'pkg-config'" \
+              '' \
+              '[host_machine]' \
+              "system = 'windows'" \
+              "cpu_family = 'x86_64'" \
+              "cpu = 'x86_64'" \
+              "endian = 'little'" > dav1d-mingw.ini
 
             meson setup dav1d_build dav1d \
               --cross-file dav1d-mingw.ini \
@@ -296,10 +295,11 @@ jobs:
       - name: Pack Desktop Artifacts
         run: |
           set -euo pipefail
-          mkdir -p release/${{ matrix.target }}/bin
-          cp -a /home/runner/publish/bin/ffmpeg* release/${{ matrix.target }}/bin/
-          cp -a /home/runner/publish/bin/ffprobe* release/${{ matrix.target }}/bin/
-          tar -czf ffmpeg-desktop-${{ matrix.target }}-n8.0.1-dav1d.tar.gz -C release ${{ matrix.target }}
+          PACKAGE_DIR="$(mktemp -d)"
+          mkdir -p "$PACKAGE_DIR/${{ matrix.target }}/bin"
+          cp -a /home/runner/publish/bin/ffmpeg* "$PACKAGE_DIR/${{ matrix.target }}/bin/"
+          cp -a /home/runner/publish/bin/ffprobe* "$PACKAGE_DIR/${{ matrix.target }}/bin/"
+          tar -czf ffmpeg-desktop-${{ matrix.target }}-n8.0.1-dav1d.tar.gz -C "$PACKAGE_DIR" "${{ matrix.target }}"
 
       - name: Generate Release Metadata
         id: release_meta
@@ -382,10 +382,11 @@ jobs:
       - name: Pack macOS Artifacts
         run: |
           set -euo pipefail
-          mkdir -p release/macos/bin
-          cp -a /Users/runner/publish/bin/ffmpeg* release/macos/bin/
-          cp -a /Users/runner/publish/bin/ffprobe* release/macos/bin/
-          tar -czf ffmpeg-desktop-macos-n8.0.1-dav1d.tar.gz -C release macos
+          PACKAGE_DIR="$(mktemp -d)"
+          mkdir -p "$PACKAGE_DIR/macos/bin"
+          cp -a /Users/runner/publish/bin/ffmpeg* "$PACKAGE_DIR/macos/bin/"
+          cp -a /Users/runner/publish/bin/ffprobe* "$PACKAGE_DIR/macos/bin/"
+          tar -czf ffmpeg-desktop-macos-n8.0.1-dav1d.tar.gz -C "$PACKAGE_DIR" macos
 
       - name: Generate Release Metadata
         id: release_meta
