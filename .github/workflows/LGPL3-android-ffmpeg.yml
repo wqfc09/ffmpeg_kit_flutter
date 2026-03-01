@@ -119,6 +119,15 @@ jobs:
           [ -f build.log ] && cp build.log release/android/
           tar -czf ffmpegkit-android-aar.tar.gz -C release android
 
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-kit-android-custom
+          if-no-files-found: error
+          path: |
+            ffmpegkit-android-aar.tar.gz
+            build.log
+
       - name: Generate Release Metadata
         id: release_meta
         run: |
@@ -149,12 +158,3 @@ jobs:
           [ -f build.log ] && tail -n 500 build.log
           echo "=== config.log tail ==="
           find . -name "config.log" -exec sh -c 'echo "--- $1 ---"; tail -n 200 "$1"' _ {} \;
-
-      - name: Upload Android Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-kit-android-custom
-          if-no-files-found: error
-          path: |
-            ffmpegkit-android-aar.tar.gz
-            build.log

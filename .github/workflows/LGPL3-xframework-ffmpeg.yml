@@ -82,6 +82,15 @@ jobs:
 
           ditto -c -k --sequesterRsrc --keepParent artifacts/ios-xcframework ffmpegkit-ios-xcframework.zip
 
+      - name: Upload iOS Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-kit-ios-custom
+          if-no-files-found: error
+          path: |
+            ffmpegkit-ios-xcframework.zip
+            build.log
+
       - name: Generate Release Metadata
         id: release_meta
         run: |
@@ -112,12 +121,3 @@ jobs:
           [ -f build.log ] && tail -n 500 build.log
           echo "=== config.log tail ==="
           find . -name "config.log" -exec sh -c 'echo "--- $1 ---"; tail -n 200 "$1"' _ {} \;
-
-      - name: Upload iOS Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-kit-ios-custom
-          if-no-files-found: error
-          path: |
-            ffmpegkit-ios-xcframework.zip
-            build.log
