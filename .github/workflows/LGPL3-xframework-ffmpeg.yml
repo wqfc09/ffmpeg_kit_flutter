@@ -1,4 +1,4 @@
-name: Build Custom FFmpeg iOS (WebP)
+name: Build Custom FFmpeg iOS
 
 permissions:
   contents: write
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-ios:
-    name: Build iOS XCFramework (webp)
+    name: Build iOS XCFramework
     runs-on: macos-14
 
     steps:
@@ -89,8 +89,8 @@ jobs:
         run: |
           set -euo pipefail
           SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="ios-webp-dav1d-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
-          NAME="iOS FFmpeg Kit WebP+DAV1D (${SHORT_SHA})"
+          TAG="ios-custom-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          NAME="iOS FFmpeg Kit Custom (${SHORT_SHA})"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
@@ -117,7 +117,7 @@ jobs:
       - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-kit-ios-custom-webp-dav1d
+          name: ffmpeg-kit-ios-custom
           if-no-files-found: error
           path: |
             ffmpegkit-ios-xcframework.zip

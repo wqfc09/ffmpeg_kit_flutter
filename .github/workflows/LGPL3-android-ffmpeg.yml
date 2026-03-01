@@ -1,4 +1,4 @@
-name: Build Custom FFmpeg Android (WebP)
+name: Build Custom FFmpeg Android
 
 permissions:
   contents: write
@@ -11,7 +11,7 @@ on:
 
 jobs:
   build-android:
-    name: Build Android AAR (arm64 + webp)
+    name: Build Android AAR (arm64)
     runs-on: ubuntu-22.04
 
     env:
@@ -119,15 +119,15 @@ jobs:
           done < "$AAR_LIST_FILE"
 
           [ -f build.log ] && cp build.log release/android/
-          tar -czf ffmpegkit-android-aar-webp-dav1d.tar.gz -C release android
+          tar -czf ffmpegkit-android-aar.tar.gz -C release android
 
       - name: Generate Release Metadata
         id: release_meta
         run: |
           set -euo pipefail
           SHORT_SHA="${GITHUB_SHA::7}"
-          TAG="android-webp-dav1d-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
-          NAME="Android FFmpeg Kit WebP+DAV1D (${SHORT_SHA})"
+          TAG="android-custom-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          NAME="Android FFmpeg Kit Custom (${SHORT_SHA})"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
 
@@ -140,7 +140,7 @@ jobs:
           prerelease: true
           generate_release_notes: true
           files: |
-            ffmpegkit-android-aar-webp-dav1d.tar.gz
+            ffmpegkit-android-aar.tar.gz
             build.log
 
       - name: Print Build Logs on Failure
@@ -154,8 +154,8 @@ jobs:
       - name: Upload Android Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ffmpeg-kit-android-custom-webp-dav1d
+          name: ffmpeg-kit-android-custom
           if-no-files-found: error
           path: |
-            ffmpegkit-android-aar-webp-dav1d.tar.gz
+            ffmpegkit-android-aar.tar.gz
             build.log
