@@ -42,7 +42,7 @@ jobs:
             autoconf automake libtool
 
           if [ "${{ matrix.target }}" = "windows" ]; then
-            sudo apt-get install -y mingw-w64
+            sudo apt-get install -y mingw-w64 libz-mingw-w64-dev
           else
             sudo apt-get install -y \
               libvpx-dev libaom-dev libopus-dev libdav1d-dev libva-dev libdrm-dev \
@@ -291,8 +291,23 @@ jobs:
             --enable-ffmpeg --enable-ffprobe \
             --enable-avcodec --enable-avformat --enable-avfilter --enable-avdevice --enable-avutil --enable-swresample --enable-swscale \
             --enable-libvpl --enable-libkvazaar \
+            --enable-zlib \
             --enable-indev=lavfi \
-            --enable-filter='split,scale,format,null,fps,crop,transpose,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink' \
+            --enable-filter=split \
+            --enable-filter=scale \
+            --enable-filter=format \
+            --enable-filter=null \
+            --enable-filter=fps \
+            --enable-filter=crop \
+            --enable-filter=transpose \
+            --enable-filter=unsharp \
+            --enable-filter=atadenoise \
+            --enable-filter=hwupload \
+            --enable-filter=hwdownload \
+            --enable-filter=testsrc2 \
+            --enable-filter=color \
+            --enable-filter=buffer \
+            --enable-filter=buffersink \
             --enable-parser=h264,hevc,aac,mpegaudio \
             --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
             --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \
@@ -304,7 +319,9 @@ jobs:
               --pkg-config=pkg-config --pkg-config-flags="--static" \
               --enable-vaapi \
               --enable-libdav1d --enable-libvpx --enable-libaom --enable-libopus --enable-libwebp \
-              --enable-hwaccel=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,cuda,vaapi \
+              --enable-hwaccel=qsv \
+              --enable-hwaccel=cuda \
+              --enable-hwaccel=vaapi \
               --enable-decoder=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,libdav1d \
               --enable-encoder=h264_vaapi,hevc_vaapi,av1_vaapi,h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
               --enable-protocol=file,http,tcp,udp \
@@ -316,7 +333,10 @@ jobs:
               --arch=x86_64 --target-os=mingw32 --cross-prefix=x86_64-w64-mingw32- \
               --pkg-config=pkg-config --pkg-config-flags="--static" \
               --enable-libdav1d --enable-libwebp \
-              --enable-hwaccel=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,cuda,d3d11va,dxva2 \
+              --enable-hwaccel=qsv \
+              --enable-hwaccel=cuda \
+              --enable-hwaccel=d3d11va \
+              --enable-hwaccel=dxva2 \
               --enable-decoder=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,libdav1d \
               --enable-encoder=h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_amf,hevc_amf,av1_amf,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
               --enable-protocol=file,http,tcp,udp \
@@ -402,8 +422,23 @@ jobs:
             --enable-avcodec --enable-avformat --enable-avfilter --enable-avdevice --enable-avutil --enable-swresample --enable-swscale \
             --enable-videotoolbox \
             --enable-libdav1d --enable-libvpx --enable-libaom --enable-libopus --enable-libwebp \
+            --enable-zlib \
             --enable-indev=lavfi \
-            --enable-filter='split,scale,format,null,fps,crop,transpose,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink' \
+            --enable-filter=split \
+            --enable-filter=scale \
+            --enable-filter=format \
+            --enable-filter=null \
+            --enable-filter=fps \
+            --enable-filter=crop \
+            --enable-filter=transpose \
+            --enable-filter=unsharp \
+            --enable-filter=atadenoise \
+            --enable-filter=hwupload \
+            --enable-filter=hwdownload \
+            --enable-filter=testsrc2 \
+            --enable-filter=color \
+            --enable-filter=buffer \
+            --enable-filter=buffersink \
             --enable-parser=h264,hevc,aac,mpegaudio \
             --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
             --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \

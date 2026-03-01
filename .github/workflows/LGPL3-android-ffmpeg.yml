@@ -75,8 +75,6 @@ jobs:
 
       - name: Build with Custom Flags
         env:
-          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
           FFMPEG_KIT_FFMPEG_CONFIGURE_FLAGS: >-
             --enable-version3 --disable-gpl --disable-nonfree
             --disable-all
@@ -89,7 +87,22 @@ jobs:
             --enable-parser=h264,hevc,aac,mpegaudio
             --enable-decoder=h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec,h264,hevc,vp9,av1,libdav1d,aac,mp3,webp,mjpeg,png
             --enable-encoder=h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec,mpeg4_mediacodec,aac,libwebp,libwebp_anim
-            --enable-filter='split,scale,format,null,fps,crop,transpose,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink'
+            --enable-zlib
+            --enable-filter=split
+            --enable-filter=scale
+            --enable-filter=format
+            --enable-filter=null
+            --enable-filter=fps
+            --enable-filter=crop
+            --enable-filter=transpose
+            --enable-filter=unsharp
+            --enable-filter=atadenoise
+            --enable-filter=hwupload
+            --enable-filter=hwdownload
+            --enable-filter=testsrc2
+            --enable-filter=color
+            --enable-filter=buffer
+            --enable-filter=buffersink
             --enable-libwebp
             --enable-libdav1d
         run: |
