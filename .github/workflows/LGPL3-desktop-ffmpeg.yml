@@ -292,7 +292,7 @@ jobs:
             --enable-avcodec --enable-avformat --enable-avfilter --enable-avdevice --enable-avutil --enable-swresample --enable-swscale \
             --enable-libvpl --enable-libkvazaar \
             --enable-indev=lavfi \
-            --enable-filter='split,scale,format,null,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink' \
+            --enable-filter='split,scale,format,null,fps,crop,transpose,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink' \
             --enable-parser=h264,hevc,aac,mpegaudio \
             --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
             --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \
@@ -403,7 +403,7 @@ jobs:
             --enable-videotoolbox \
             --enable-libdav1d --enable-libvpx --enable-libaom --enable-libopus --enable-libwebp \
             --enable-indev=lavfi \
-            --enable-filter='split,scale,format,null,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink' \
+            --enable-filter='split,scale,format,null,fps,crop,transpose,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink' \
             --enable-parser=h264,hevc,aac,mpegaudio \
             --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
             --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \

@@ -89,7 +89,7 @@ jobs:
             --enable-parser=h264,hevc,aac,mpegaudio
             --enable-decoder=h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec,h264,hevc,vp9,av1,libdav1d,aac,mp3,webp,mjpeg,png
             --enable-encoder=h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec,mpeg4_mediacodec,aac,libwebp,libwebp_anim
-            --enable-filter='split,scale,format,null,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink'
+            --enable-filter='split,scale,format,null,fps,crop,transpose,unsharp,atadenoise,hwupload,hwdownload,testsrc2,color,buffer,buffersink'
             --enable-libwebp
             --enable-libdav1d
         run: |
