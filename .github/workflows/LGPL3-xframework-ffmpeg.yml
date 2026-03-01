@@ -62,7 +62,7 @@ jobs:
             --enable-muxer=mp4,mov,image2,webp,null
             --enable-parser=h264,hevc,aac,mpegaudio
             --enable-decoder=h264_videotoolbox,hevc_videotoolbox,vp9_videotoolbox,av1_videotoolbox,h264,hevc,vp9,av1,libdav1d,aac,mp3,webp,mjpeg,png
-            --enable-encoder=h264_videotoolbox,hevc_videotoolbox,aac,libwebp,libwebp_anim
+            --enable-encoder=h264_videotoolbox,hevc_videotoolbox,vp9_videotoolbox,av1_videotoolbox,aac,libwebp,libwebp_anim
             --enable-zlib
             --enable-filter=split
             --enable-filter=scale

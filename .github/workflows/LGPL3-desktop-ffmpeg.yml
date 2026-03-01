@@ -306,8 +306,6 @@ jobs:
             --enable-filter=hwdownload \
             --enable-filter=testsrc2 \
             --enable-filter=color \
-            --enable-filter=buffer \
-            --enable-filter=buffersink \
             --enable-parser=h264,hevc,aac,mpegaudio \
             --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
             --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \
@@ -319,11 +317,9 @@ jobs:
               --pkg-config=pkg-config --pkg-config-flags="--static" \
               --enable-vaapi \
               --enable-libdav1d --enable-libvpx --enable-libaom --enable-libopus --enable-libwebp \
-              --enable-hwaccel=qsv \
-              --enable-hwaccel=cuda \
-              --enable-hwaccel=vaapi \
-              --enable-decoder=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,libdav1d \
-              --enable-encoder=h264_vaapi,hevc_vaapi,av1_vaapi,h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
+              --enable-hwaccel=h264_nvdec,hevc_nvdec,vp9_nvdec,av1_nvdec,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_vaapi,hevc_vaapi,vp9_vaapi,av1_vaapi \
+              --enable-decoder=h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,libdav1d \
+              --enable-encoder=h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,av1_qsv,h264_vaapi,hevc_vaapi,av1_vaapi,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
               --enable-protocol=file,http,tcp,udp \
               --extra-cflags="-I$HOME/target_build/include" \
               --extra-ldflags="-L$HOME/target_build/lib -L$HOME/target_build/lib/x86_64-linux-gnu -lstdc++ -lpthread -lm -ldl -lrt" || \
@@ -333,12 +329,9 @@ jobs:
               --arch=x86_64 --target-os=mingw32 --cross-prefix=x86_64-w64-mingw32- \
               --pkg-config=pkg-config --pkg-config-flags="--static" \
               --enable-libdav1d --enable-libwebp \
-              --enable-hwaccel=qsv \
-              --enable-hwaccel=cuda \
-              --enable-hwaccel=d3d11va \
-              --enable-hwaccel=dxva2 \
-              --enable-decoder=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,libdav1d \
-              --enable-encoder=h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_amf,hevc_amf,av1_amf,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
+              --enable-hwaccel=h264_nvdec,hevc_nvdec,vp9_nvdec,av1_nvdec,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_d3d11va,hevc_d3d11va,vp9_d3d11va,av1_d3d11va,h264_dxva2,hevc_dxva2 \
+              --enable-decoder=h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,libdav1d \
+              --enable-encoder=h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,av1_qsv,h264_amf,hevc_amf,av1_amf,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
               --enable-protocol=file,http,tcp,udp \
               --extra-cflags="-I$HOME/target_build/include -DKVZ_STATIC_LIB" \
               --extra-ldflags="-L$HOME/target_build/lib -static -lstdc++ -lpthread" || \
@@ -437,13 +430,12 @@ jobs:
             --enable-filter=hwdownload \
             --enable-filter=testsrc2 \
             --enable-filter=color \
-            --enable-filter=buffer \
-            --enable-filter=buffersink \
             --enable-parser=h264,hevc,aac,mpegaudio \
             --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
             --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \
-            --enable-decoder=h264,hevc,vp9,av1,libdav1d,aac,mp3,opus,webp,mjpeg,png \
-            --enable-encoder=h264_videotoolbox,hevc_videotoolbox,aac,libwebp,libwebp_anim,wrapped_avframe \
+            --enable-hwaccel=h264_videotoolbox,hevc_videotoolbox,vp9_videotoolbox,av1_videotoolbox,prores_videotoolbox \
+            --enable-decoder=h264_videotoolbox,hevc_videotoolbox,vp9_videotoolbox,av1_videotoolbox,prores_videotoolbox,h264,hevc,vp9,av1,libdav1d,aac,mp3,opus,webp,mjpeg,png \
+            --enable-encoder=h264_videotoolbox,hevc_videotoolbox,vp9_videotoolbox,av1_videotoolbox,prores_videotoolbox,aac,libwebp,libwebp_anim,wrapped_avframe \
             --enable-protocol=file,http,tcp,udp \
             --extra-cflags="-I$HOME/target_build/include -I/opt/homebrew/include -I/usr/local/include" \
             --extra-ldflags="-L$HOME/target_build/lib -L/opt/homebrew/lib -L/usr/local/lib"
