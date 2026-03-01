@@ -20,6 +20,25 @@ jobs:
           ref: main
           fetch-depth: 1
 
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+          key: ios-brew-${{ runner.os }}-${{ hashFiles('.github/workflows/LGPL3-xframework-ffmpeg.yml') }}
+          restore-keys: |
+            ios-brew-${{ runner.os }}-
+
+      - name: Cache FFmpeg-Kit Build Artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            src
+            prebuilt
+          key: ios-ffmpeg-kit-cache-${{ runner.os }}-${{ hashFiles('ios.sh', 'scripts/apple/*.sh') }}
+          restore-keys: |
+            ios-ffmpeg-kit-cache-${{ runner.os }}-
+
       - name: Show Xcode Version
         run: |
           xcodebuild -version

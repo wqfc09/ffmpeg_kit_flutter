@@ -51,14 +51,79 @@ android {
     }
 }
 
+def localAar = file("$projectDir/libs/ffmpeg-kit-custom.aar")
+def releaseOwner = System.getenv("FFMPEG_KIT_RELEASE_OWNER") ?: "wqfc09"
+def releaseRepo = System.getenv("FFMPEG_KIT_RELEASE_REPO") ?: "ffmpeg_kit_flutter"
+def releaseTag = System.getenv("FFMPEG_KIT_ANDROID_RELEASE_TAG") ?: (System.getenv("FFMPEG_KIT_RELEASE_TAG") ?: "android")
+def assetName = System.getenv("FFMPEG_KIT_ANDROID_ASSET") ?: "ffmpegkit-android-aar.tar.gz"
+def assetUrl = "https://github.com/${releaseOwner}/${releaseRepo}/releases/download/${releaseTag}/${assetName}"
+
+tasks.register("prepareLocalFfmpegKitAar") {
+    doLast {
+        if (localAar.exists()) {
+            println("Using local Android prebuilt: ${localAar}")
+            return
+        }
+
+        def libsDir = localAar.parentFile
+        libsDir.mkdirs()
+
+        def tempDir = file("$buildDir/tmp/ffmpeg-kit-android")
+        delete tempDir
+        tempDir.mkdirs()
+
+        def archiveFile = new File(tempDir, assetName)
+        println("Downloading Android prebuilt from: ${assetUrl}")
+        new URL(assetUrl).withInputStream { input ->
+            archiveFile.withOutputStream { output -> output << input }
+        }
+
+        def extractDir = new File(tempDir, "extracted")
+        extractDir.mkdirs()
+
+        def normalizedName = assetName.toLowerCase()
+        if (normalizedName.endsWith(".zip")) {
+            copy {
+                from zipTree(archiveFile)
+                into extractDir
+            }
+        } else if (normalizedName.endsWith(".tar.gz") || normalizedName.endsWith(".tgz")) {
+            ant.untar(src: archiveFile, dest: extractDir, compression: "gzip")
+        } else if (normalizedName.endsWith(".aar")) {
+            copy {
+                from archiveFile
+                into extractDir
+            }
+        } else {
+            throw new GradleException("Unsupported Android asset type: ${assetName}")
+        }
+
+        def aarFiles = fileTree(extractDir) { include("**/*.aar") }.files.toList()
+        if (aarFiles.isEmpty()) {
+            throw new GradleException("No .aar found inside downloaded asset: ${assetName}")
+        }
+
+        copy {
+            from aarFiles.first()
+            into libsDir
+            rename { "ffmpeg-kit-custom.aar" }
+        }
+
+        if (!localAar.exists()) {
+            throw new GradleException("Failed to prepare Android local AAR: ${localAar}")
+        }
+
+        println("Prepared Android local AAR: ${localAar}")
+    }
+}
+
+tasks.configureEach {
+    if (name == "preBuild") {
+        dependsOn("prepareLocalFfmpegKitAar")
+    }
+}
+
 dependencies {
     implementation("androidx.annotation:annotation:1.9.1")
-
-    def localAar = file("$projectDir/libs/ffmpeg-kit-custom.aar")
-    if (localAar.exists()) {
-        implementation(files(localAar))
-    } else {
-        // 本地 AAR 不存在时，回退到远程依赖，避免仓库首次拉取无法编译
-        implementation("com.antonkarpenko:ffmpeg-kit-full-gpl:2.1.0")
-    }
+    implementation(files(localAar))
 }

@@ -24,6 +24,16 @@ jobs:
           ref: n8.0.1
           fetch-depth: 1
 
+      - name: Cache Desktop Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            /home/runner/target_build
+          key: desktop-deps-${{ runner.os }}-${{ matrix.target }}-n8.0.1-v1
+          restore-keys: |
+            desktop-deps-${{ runner.os }}-${{ matrix.target }}-n8.0.1-
+            desktop-deps-${{ runner.os }}-${{ matrix.target }}-
+
       - name: Install Build Essentials
         run: |
           sudo apt-get update
@@ -42,6 +52,11 @@ jobs:
       # 1. 编译 libvpl
       - name: Build libvpl
         run: |
+          if [ -f "$HOME/target_build/lib/pkgconfig/vpl.pc" ]; then
+            echo "Cache hit: skip libvpl build."
+            exit 0
+          fi
+
           git clone --branch main --depth 1 https://github.com/oneapi-src/oneVPL libvpl
           if [ "${{ matrix.target }}" = "windows" ]; then
             cmake -B vpl_build -S libvpl \
@@ -73,6 +88,11 @@ jobs:
       # 2. 编译 kvazaar
       - name: Build kvazaar
         run: |
+          if [ -f "$HOME/target_build/lib/pkgconfig/kvazaar.pc" ]; then
+            echo "Cache hit: skip kvazaar build."
+            exit 0
+          fi
+
           git clone --branch v2.3.2 --depth 1 https://github.com/ultravideo/kvazaar
           sed -i '1i cmake_minimum_required(VERSION 3.10)\ncmake_policy(SET CMP0057 NEW)' kvazaar/CMakeLists.txt
 
@@ -112,6 +132,11 @@ jobs:
       - name: Build libwebp
         run: |
           set -euo pipefail
+          if [ -f "$HOME/target_build/lib/pkgconfig/libwebp.pc" ]; then
+            echo "Cache hit: skip libwebp build."
+            exit 0
+          fi
+
           git clone --branch v1.4.0 --depth 1 https://github.com/webmproject/libwebp
 
           if [ "${{ matrix.target }}" = "windows" ]; then
@@ -165,6 +190,16 @@ jobs:
       - name: Build dav1d
         run: |
           set -euo pipefail
+          DAV1D_PC_EXISTING="$(find "$HOME/target_build" -type f -path "*/pkgconfig/dav1d.pc" | head -n 1 || true)"
+          if [ -n "$DAV1D_PC_EXISTING" ]; then
+            echo "Cache hit: skip dav1d build."
+            mkdir -p "$HOME/target_build/lib/pkgconfig"
+            if [ "$DAV1D_PC_EXISTING" != "$HOME/target_build/lib/pkgconfig/dav1d.pc" ]; then
+              cp "$DAV1D_PC_EXISTING" "$HOME/target_build/lib/pkgconfig/dav1d.pc"
+            fi
+            exit 0
+          fi
+
           git clone --branch 1.5.1 --depth 1 https://github.com/videolan/dav1d.git
 
           if [ "${{ matrix.target }}" = "windows" ]; then
@@ -218,6 +253,11 @@ jobs:
       # 5. 安装硬件头文件
       - name: Install Hardware Headers
         run: |
+          if [ -f "$HOME/target_build/include/ffnvcodec/nvEncodeAPI.h" ] && [ -f "$HOME/target_build/include/AMF/core/Version.h" ]; then
+            echo "Cache hit: skip hardware headers install."
+            exit 0
+          fi
+
           mkdir -p "$HOME/target_build/include"
 
           curl -L https://github.com/FFmpeg/nv-codec-headers/archive/refs/heads/master.tar.gz -o nvenc.tar.gz
@@ -288,15 +328,6 @@ jobs:
           make -j"$(nproc)"
           make install
 
-      - name: Upload Binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-${{ matrix.target }}
-          if-no-files-found: error
-          path: |
-            /home/runner/publish/bin/ffmpeg*
-            /home/runner/publish/bin/ffprobe*
-
       - name: Pack Desktop Artifacts
         run: |
           set -euo pipefail
@@ -339,6 +370,16 @@ jobs:
           ref: n8.0.1
           fetch-depth: 1
 
+      - name: Cache Homebrew
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/Library/Caches/Homebrew
+          key: desktop-brew-${{ runner.os }}-n8.0.1-v1
+          restore-keys: |
+            desktop-brew-${{ runner.os }}-n8.0.1-
+            desktop-brew-${{ runner.os }}-
+
       - name: Install Build Essentials
         run: |
           brew update
@@ -374,15 +415,6 @@ jobs:
 
           make -j"$(sysctl -n hw.logicalcpu)"
           make install
-
-      - name: Upload Binary
-        uses: actions/upload-artifact@v4
-        with:
-          name: ffmpeg-macos
-          if-no-files-found: error
-          path: |
-            /Users/runner/publish/bin/ffmpeg*
-            /Users/runner/publish/bin/ffprobe*
 
       - name: Pack macOS Artifacts
         run: |
