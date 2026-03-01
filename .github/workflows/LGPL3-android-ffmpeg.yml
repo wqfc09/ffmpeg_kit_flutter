@@ -1,0 +1,161 @@
+name: Build Custom FFmpeg Android (WebP)
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/LGPL3-android-ffmpeg.yml"
+
+jobs:
+  build-android:
+    name: Build Android AAR (arm64 + webp)
+    runs-on: ubuntu-22.04
+
+    env:
+      NDK_VERSION: r25c
+      NDK_DIR: ${{ github.workspace }}/android-ndk-r25c
+
+    steps:
+      - name: Checkout FFmpeg Kit Fork
+        uses: actions/checkout@v4
+        with:
+          repository: arthenica/ffmpeg-kit
+          ref: main
+          fetch-depth: 1
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Android NDK
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.NDK_DIR }}
+          key: ndk-${{ env.NDK_VERSION }}-${{ runner.os }}
+
+      - name: Install Android NDK r25c
+        run: |
+          if [ ! -d "${NDK_DIR}" ]; then
+            curl -L -s https://dl.google.com/android/repository/android-ndk-${NDK_VERSION}-linux.zip -o ndk.zip
+            unzip -q ndk.zip
+            rm -f ndk.zip
+          fi
+          echo "ANDROID_NDK_ROOT=${NDK_DIR}" >> "${GITHUB_ENV}"
+          echo "ANDROID_SDK_ROOT=${ANDROID_HOME}" >> "${GITHUB_ENV}"
+
+      - name: Install Build Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential git autoconf automake libtool pkg-config \
+            cmake gperf bison flex nasm yasm curl unzip
+
+      - name: Build with Custom Flags
+        env:
+          ANDROID_NDK_ROOT: ${{ env.ANDROID_NDK_ROOT }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          FFMPEG_KIT_FFMPEG_CONFIGURE_FLAGS: >-
+            --enable-version3 --disable-gpl --disable-nonfree
+            --disable-all
+            --enable-ffmpeg --enable-ffprobe
+            --enable-avcodec --enable-avformat --enable-avfilter --enable-avdevice --enable-avutil --enable-swresample --enable-swscale
+            --enable-jni --enable-mediacodec
+            --enable-protocol=file,pipe,http,https,tcp,udp
+            --enable-demuxer=mov,mp4,m4a,matroska,avi,webp,image2,h264,hevc,aac,mp3
+            --enable-muxer=mp4,mov,image2,webp,null
+            --enable-parser=h264,hevc,aac,mpegaudio
+            --enable-decoder=h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec,h264,hevc,vp9,av1,libdav1d,aac,mp3,webp,mjpeg,png
+            --enable-encoder=h264_mediacodec,hevc_mediacodec,vp9_mediacodec,av1_mediacodec,mpeg4_mediacodec,aac,libwebp,libwebp_anim
+            --enable-filter=split,scale,format,null,fps,crop,transpose,hwupload,hwdownload
+            --enable-libwebp
+            --enable-libdav1d
+        run: |
+          chmod +x android.sh
+          ./android.sh \
+            --disable-arm-v7a \
+            --disable-arm-v7a-neon \
+            --disable-x86 \
+            --disable-x86-64 \
+            --enable-dav1d \
+            --enable-android-zlib | tee build.log
+
+      - name: Check Build Outputs
+        run: |
+          echo "=== AAR Files ==="
+          find . -name "*.aar"
+          echo "=== Shared Objects ==="
+          find . -name "*.so" | head -n 50
+          echo "=== WebP/DAV1D/MediaCodec Signals in Log ==="
+          grep -Ei "libwebp|webp|dav1d|libdav1d|mediacodec" build.log | tail -n 80 || true
+
+      - name: Pack Android Artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release/android
+          AAR_LIST_FILE="$(mktemp)"
+
+          find . -type f -path "*/build/outputs/aar/*.aar" > "$AAR_LIST_FILE" || true
+          if [ -d android/libs ]; then
+            find android/libs -type f -name "*.aar" >> "$AAR_LIST_FILE"
+          fi
+          if [ -d prebuilt ]; then
+            find prebuilt -type f -name "*.aar" >> "$AAR_LIST_FILE"
+          fi
+
+          sort -u "$AAR_LIST_FILE" -o "$AAR_LIST_FILE"
+          if [ ! -s "$AAR_LIST_FILE" ]; then
+            echo "No AAR output found in workspace."
+            exit 1
+          fi
+
+          while IFS= read -r aar; do
+            safe_name="$(echo "${aar#./}" | tr '/\\' '__')"
+            cp "$aar" "release/android/$safe_name"
+          done < "$AAR_LIST_FILE"
+
+          [ -f build.log ] && cp build.log release/android/
+          tar -czf ffmpegkit-android-aar-webp-dav1d.tar.gz -C release android
+
+      - name: Generate Release Metadata
+        id: release_meta
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="android-webp-dav1d-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          NAME="Android FFmpeg Kit WebP+DAV1D (${SHORT_SHA})"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            ffmpegkit-android-aar-webp-dav1d.tar.gz
+            build.log
+
+      - name: Print Build Logs on Failure
+        if: failure()
+        run: |
+          echo "=== FFmpeg-Kit Build Log (tail 500) ==="
+          [ -f build.log ] && tail -n 500 build.log
+          echo "=== config.log tail ==="
+          find . -name "config.log" -exec sh -c 'echo "--- $1 ---"; tail -n 200 "$1"' _ {} \;
+
+      - name: Upload Android Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-kit-android-custom-webp-dav1d
+          if-no-files-found: error
+          path: |
+            ffmpegkit-android-aar-webp-dav1d.tar.gz
+            build.log

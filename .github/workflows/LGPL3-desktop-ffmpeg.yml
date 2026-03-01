@@ -1,0 +1,407 @@
+name: FFmpeg-LGPL3-Desktop
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  push:
+
+jobs:
+  build-linux-windows:
+    name: Build ${{ matrix.target }} FFmpeg
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [linux, windows]
+
+    steps:
+      - name: Checkout FFmpeg Source
+        uses: actions/checkout@v4
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: n8.0.1
+          fetch-depth: 1
+
+      - name: Install Build Essentials
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential pkg-config nasm yasm cmake curl tar git meson ninja-build \
+            autoconf automake libtool
+
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            sudo apt-get install -y mingw-w64
+          else
+            sudo apt-get install -y \
+              libvpx-dev libaom-dev libopus-dev libdav1d-dev libva-dev libdrm-dev \
+              libwebp-dev
+          fi
+
+      # 1. 编译 libvpl
+      - name: Build libvpl
+        run: |
+          git clone --branch main --depth 1 https://github.com/oneapi-src/oneVPL libvpl
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            cmake -B vpl_build -S libvpl \
+              -DCMAKE_SYSTEM_NAME=Windows \
+              -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+              -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+              -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
+              -DCMAKE_INSTALL_PREFIX="$HOME/target_build" \
+              -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF
+          else
+            cmake -B vpl_build -S libvpl \
+              -DCMAKE_INSTALL_PREFIX="$HOME/target_build" \
+              -DBUILD_SHARED_LIBS=OFF -DBUILD_EXAMPLES=OFF -DBUILD_TESTS=OFF
+          fi
+
+          cmake --build vpl_build --parallel "$(nproc)"
+          cmake --install vpl_build
+
+          PC_FILE="$(find "$HOME/target_build" -name "vpl.pc" | head -n 1)"
+          if [ -n "$PC_FILE" ] && [ -f "$PC_FILE" ]; then
+            sed -i 's/Version: .*/Version: 2.16.0/' "$PC_FILE"
+            if [ "${{ matrix.target }}" = "windows" ]; then
+              sed -i 's/Libs: .*/& -lstdc++/' "$PC_FILE"
+            else
+              sed -i 's/Libs: .*/& -lstdc++ -ldl -lpthread/' "$PC_FILE"
+            fi
+          fi
+
+      # 2. 编译 kvazaar
+      - name: Build kvazaar
+        run: |
+          git clone --branch v2.3.2 --depth 1 https://github.com/ultravideo/kvazaar
+          sed -i '1i cmake_minimum_required(VERSION 3.10)\ncmake_policy(SET CMP0057 NEW)' kvazaar/CMakeLists.txt
+
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            cmake -B kvz_build -S kvazaar \
+              -DCMAKE_SYSTEM_NAME=Windows \
+              -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+              -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+              -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+              -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
+              -DCMAKE_INSTALL_PREFIX="$HOME/target_build" \
+              -DBUILD_SHARED_LIBS=OFF -Dkvazaar_tests=OFF
+          else
+            cmake -B kvz_build -S kvazaar \
+              -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+              -DCMAKE_INSTALL_PREFIX="$HOME/target_build" \
+              -DBUILD_SHARED_LIBS=OFF -Dkvazaar_tests=OFF
+          fi
+
+          cmake --build kvz_build --parallel "$(nproc)"
+          cmake --install kvz_build
+
+          PC_FILE="$(find "$HOME/target_build" -name "kvazaar.pc" | head -n 1)"
+          if [ -f "$PC_FILE" ]; then
+            sed -i 's/Version: .*/Version: 2.3.2/' "$PC_FILE"
+            if [ "${{ matrix.target }}" = "windows" ]; then
+              sed -i 's/Libs.private:.*/Libs.private: -lpthread/' "$PC_FILE"
+              sed -i '/^Libs:/ s/$/ -lpthread/' "$PC_FILE"
+              sed -i 's/^Cflags:.*/& -DKVZ_STATIC_LIB/' "$PC_FILE"
+            else
+              sed -i 's/Libs.private:.*/Libs.private: -lpthread -lm -ldl -lrt/' "$PC_FILE"
+              sed -i '/^Libs:/ s/$/ -lpthread -lm -ldl -lrt/' "$PC_FILE"
+            fi
+          fi
+
+      # 3. 编译 libwebp（Linux/Windows）
+      - name: Build libwebp
+        run: |
+          set -euo pipefail
+          git clone --branch v1.4.0 --depth 1 https://github.com/webmproject/libwebp
+
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            AR_BIN="$(command -v x86_64-w64-mingw32-gcc-ar || command -v x86_64-w64-mingw32-gcc-ar-posix || command -v x86_64-w64-mingw32-ar)"
+            RANLIB_BIN="$(command -v x86_64-w64-mingw32-gcc-ranlib || command -v x86_64-w64-mingw32-gcc-ranlib-posix || command -v x86_64-w64-mingw32-ranlib)"
+            echo "Using AR: $AR_BIN"
+            echo "Using RANLIB: $RANLIB_BIN"
+
+            cmake -B webp_build -S libwebp \
+              -DCMAKE_SYSTEM_NAME=Windows \
+              -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+              -DCMAKE_C_COMPILER=x86_64-w64-mingw32-gcc \
+              -DCMAKE_CXX_COMPILER=x86_64-w64-mingw32-g++ \
+              -DCMAKE_RC_COMPILER=x86_64-w64-mingw32-windres \
+              -DCMAKE_AR="$AR_BIN" \
+              -DCMAKE_RANLIB="$RANLIB_BIN" \
+              -DCMAKE_INSTALL_PREFIX="$HOME/target_build" \
+              -DBUILD_SHARED_LIBS=OFF \
+              -DWEBP_BUILD_CWEBP=OFF \
+              -DWEBP_BUILD_DWEBP=OFF \
+              -DWEBP_BUILD_GIF2WEBP=OFF \
+              -DWEBP_BUILD_IMG2WEBP=OFF \
+              -DWEBP_BUILD_VWEBP=OFF \
+              -DWEBP_BUILD_WEBPINFO=OFF \
+              -DWEBP_BUILD_EXTRAS=OFF
+          else
+            cmake -B webp_build -S libwebp \
+              -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+              -DCMAKE_INSTALL_PREFIX="$HOME/target_build" \
+              -DBUILD_SHARED_LIBS=OFF \
+              -DWEBP_BUILD_CWEBP=OFF \
+              -DWEBP_BUILD_DWEBP=OFF \
+              -DWEBP_BUILD_GIF2WEBP=OFF \
+              -DWEBP_BUILD_IMG2WEBP=OFF \
+              -DWEBP_BUILD_VWEBP=OFF \
+              -DWEBP_BUILD_WEBPINFO=OFF \
+              -DWEBP_BUILD_EXTRAS=OFF
+          fi
+
+          cmake --build webp_build --parallel "$(nproc)"
+          cmake --install webp_build
+
+          # 强校验：没有 libwebp.pc 就直接失败，避免后续 FFmpeg configure 才报错
+          if [ ! -f "$HOME/target_build/lib/pkgconfig/libwebp.pc" ]; then
+            echo "libwebp.pc 未生成，安装目录如下："
+            find "$HOME/target_build" -maxdepth 3 -type f | sort
+            exit 1
+          fi
+
+      # 4. 编译 dav1d（Linux/Windows）
+      - name: Build dav1d
+        run: |
+          set -euo pipefail
+          git clone --branch 1.5.1 --depth 1 https://github.com/videolan/dav1d.git
+
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            cat > dav1d-mingw.ini <<'EOF'
+            [binaries]
+            c = 'x86_64-w64-mingw32-gcc'
+            cpp = 'x86_64-w64-mingw32-g++'
+            ar = 'x86_64-w64-mingw32-gcc-ar'
+            strip = 'x86_64-w64-mingw32-strip'
+            windres = 'x86_64-w64-mingw32-windres'
+            pkgconfig = 'pkg-config'
+
+            [host_machine]
+            system = 'windows'
+            cpu_family = 'x86_64'
+            cpu = 'x86_64'
+            endian = 'little'
+            EOF
+
+            meson setup dav1d_build dav1d \
+              --cross-file dav1d-mingw.ini \
+              --prefix "$HOME/target_build" \
+              --default-library=static \
+              -Dbuildtype=release \
+              -Denable_tools=false \
+              -Denable_tests=false
+          else
+            meson setup dav1d_build dav1d \
+              --prefix "$HOME/target_build" \
+              --default-library=static \
+              -Dbuildtype=release \
+              -Denable_tools=false \
+              -Denable_tests=false
+          fi
+
+          meson compile -C dav1d_build
+          meson install -C dav1d_build
+
+          if [ ! -f "$HOME/target_build/lib/pkgconfig/dav1d.pc" ]; then
+            echo "dav1d.pc 未生成，安装目录如下："
+            find "$HOME/target_build" -maxdepth 3 -type f | sort
+            exit 1
+          fi
+
+      # 5. 安装硬件头文件
+      - name: Install Hardware Headers
+        run: |
+          mkdir -p "$HOME/target_build/include"
+
+          curl -L https://github.com/FFmpeg/nv-codec-headers/archive/refs/heads/master.tar.gz -o nvenc.tar.gz
+          tar -xzf nvenc.tar.gz
+          (cd nv-codec-headers-master && make PREFIX="$HOME/target_build" install)
+
+          curl -L https://github.com/GPUOpen-LibrariesAndSDKs/AMF/archive/refs/heads/master.tar.gz -o amf.tar.gz
+          tar -xzf amf.tar.gz
+          mkdir -p "$HOME/target_build/include/AMF"
+          cp -r AMF-master/amf/public/include/* "$HOME/target_build/include/AMF/"
+
+      # 6. 编译 FFmpeg（Linux/Windows）
+      - name: Build FFmpeg
+        run: |
+          set -euo pipefail
+
+          if [ "${{ matrix.target }}" = "windows" ]; then
+            export PKG_CONFIG_PATH="$HOME/target_build/lib/pkgconfig"
+          else
+            export PKG_CONFIG_PATH="$HOME/target_build/lib/pkgconfig:$HOME/target_build/lib/x86_64-linux-gnu/pkgconfig:/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig"
+          fi
+
+          pkg-config --modversion libwebp
+          pkg-config --libs --static libwebp
+          pkg-config --modversion dav1d
+          pkg-config --libs --static dav1d
+
+          COMMON_ARGS="--prefix=$HOME/publish \
+            --enable-version3 --disable-gpl --disable-nonfree \
+            --enable-static --disable-shared --disable-all \
+            --enable-ffmpeg --enable-ffprobe \
+            --enable-avcodec --enable-avformat --enable-avfilter --enable-avdevice --enable-avutil --enable-swresample --enable-swscale \
+            --enable-libvpl --enable-libkvazaar \
+            --enable-indev=lavfi \
+            --enable-filter=split,scale,format,null,unsharp,eq,hqdn3d,hwupload,hwdownload,testsrc2,color,buffer,buffersink \
+            --enable-parser=h264,hevc,aac,mpegaudio \
+            --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
+            --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \
+            --enable-decoder=h264,hevc,vp9,av1,aac,mp3,opus,webp,mjpeg,png,wrapped_avframe \
+            --enable-encoder=libkvazaar,wrapped_avframe"
+
+          if [ "${{ matrix.target }}" = "linux" ]; then
+            ./configure $COMMON_ARGS \
+              --pkg-config=pkg-config --pkg-config-flags="--static" \
+              --enable-vaapi \
+              --enable-libdav1d --enable-libvpx --enable-libaom --enable-libopus --enable-libwebp \
+              --enable-hwaccel=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,cuda,vaapi \
+              --enable-decoder=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,libdav1d \
+              --enable-encoder=h264_vaapi,hevc_vaapi,av1_vaapi,h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
+              --enable-protocol=file,http,tcp,udp \
+              --extra-cflags="-I$HOME/target_build/include" \
+              --extra-ldflags="-L$HOME/target_build/lib -L$HOME/target_build/lib/x86_64-linux-gnu -lstdc++ -lpthread -lm -ldl -lrt" || \
+            { tail -n 100 ffbuild/config.log; exit 1; }
+          else
+            ./configure $COMMON_ARGS \
+              --arch=x86_64 --target-os=mingw32 --cross-prefix=x86_64-w64-mingw32- \
+              --pkg-config=pkg-config --pkg-config-flags="--static" \
+              --enable-libdav1d --enable-libwebp \
+              --enable-hwaccel=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,cuda,d3d11va,dxva2 \
+              --enable-decoder=h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_cuvid,hevc_cuvid,vp9_cuvid,av1_cuvid,libdav1d \
+              --enable-encoder=h264_nvenc,hevc_nvenc,av1_nvenc,h264_qsv,hevc_qsv,vp9_qsv,av1_qsv,h264_amf,hevc_amf,av1_amf,libkvazaar,libwebp,libwebp_anim,wrapped_avframe \
+              --enable-protocol=file,http,tcp,udp \
+              --extra-cflags="-I$HOME/target_build/include -DKVZ_STATIC_LIB" \
+              --extra-ldflags="-L$HOME/target_build/lib -static -lstdc++ -lpthread" || \
+            { tail -n 100 ffbuild/config.log; exit 1; }
+          fi
+
+          make -j"$(nproc)"
+          make install
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-${{ matrix.target }}
+          if-no-files-found: error
+          path: |
+            /home/runner/publish/bin/ffmpeg*
+            /home/runner/publish/bin/ffprobe*
+
+      - name: Pack Desktop Artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release/${{ matrix.target }}/bin
+          cp -a /home/runner/publish/bin/ffmpeg* release/${{ matrix.target }}/bin/
+          cp -a /home/runner/publish/bin/ffprobe* release/${{ matrix.target }}/bin/
+          tar -czf ffmpeg-desktop-${{ matrix.target }}-n8.0.1-dav1d.tar.gz -C release ${{ matrix.target }}
+
+      - name: Generate Release Metadata
+        id: release_meta
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="desktop-${{ matrix.target }}-n8.0.1-dav1d-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          NAME="Desktop FFmpeg n8.0.1 DAV1D (${{ matrix.target }}, ${SHORT_SHA})"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            ffmpeg-desktop-${{ matrix.target }}-n8.0.1.tar.gz
+
+  build-macos:
+    name: Build macOS FFmpeg
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout FFmpeg Source
+        uses: actions/checkout@v4
+        with:
+          repository: FFmpeg/FFmpeg
+          ref: n8.0.1
+          fetch-depth: 1
+
+      - name: Install Build Essentials
+        run: |
+          brew update
+          brew install \
+            autoconf automake libtool pkg-config nasm yasm cmake \
+            dav1d libvpx aom opus webp
+
+      # 1. 编译 FFmpeg（macOS）
+      - name: Build FFmpeg
+        run: |
+          set -euo pipefail
+
+          export PKG_CONFIG_PATH="$HOME/target_build/lib/pkgconfig:/opt/homebrew/lib/pkgconfig:/usr/local/lib/pkgconfig"
+
+          ./configure \
+            --prefix="$HOME/publish" \
+            --enable-version3 --disable-gpl --disable-nonfree \
+            --enable-static --disable-shared --disable-all \
+            --enable-ffmpeg --enable-ffprobe \
+            --enable-avcodec --enable-avformat --enable-avfilter --enable-avdevice --enable-avutil --enable-swresample --enable-swscale \
+            --enable-videotoolbox \
+            --enable-libdav1d --enable-libvpx --enable-libaom --enable-libopus --enable-libwebp \
+            --enable-indev=lavfi \
+            --enable-filter=split,scale,format,null,unsharp,eq,hqdn3d,hwupload,hwdownload,testsrc2,color,buffer,buffersink \
+            --enable-parser=h264,hevc,aac,mpegaudio \
+            --enable-demuxer=lavfi,avi,mov,mkv,mp4,m4a,matroska,yuv4mpegpipe,h264,hevc,aac,mp3,webp,image2 \
+            --enable-muxer=avi,mp4,mov,mkv,null,image2,webp \
+            --enable-decoder=h264,hevc,vp9,av1,libdav1d,aac,mp3,opus,webp,mjpeg,png \
+            --enable-encoder=h264_videotoolbox,hevc_videotoolbox,aac,libwebp,libwebp_anim,wrapped_avframe \
+            --enable-protocol=file,http,tcp,udp \
+            --extra-cflags="-I$HOME/target_build/include -I/opt/homebrew/include -I/usr/local/include" \
+            --extra-ldflags="-L$HOME/target_build/lib -L/opt/homebrew/lib -L/usr/local/lib"
+
+          make -j"$(sysctl -n hw.logicalcpu)"
+          make install
+
+      - name: Upload Binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-macos
+          if-no-files-found: error
+          path: |
+            /Users/runner/publish/bin/ffmpeg*
+            /Users/runner/publish/bin/ffprobe*
+
+      - name: Pack macOS Artifacts
+        run: |
+          set -euo pipefail
+          mkdir -p release/macos/bin
+          cp -a /Users/runner/publish/bin/ffmpeg* release/macos/bin/
+          cp -a /Users/runner/publish/bin/ffprobe* release/macos/bin/
+          tar -czf ffmpeg-desktop-macos-n8.0.1-dav1d.tar.gz -C release macos
+
+      - name: Generate Release Metadata
+        id: release_meta
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::7}"
+          TAG="desktop-macos-n8.0.1-dav1d-${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          NAME="Desktop FFmpeg n8.0.1 DAV1D (macOS, ${SHORT_SHA})"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Publish to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.release_meta.outputs.tag }}
+          name: ${{ steps.release_meta.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          files: |
+            ffmpeg-desktop-macos-n8.0.1.tar.gz
