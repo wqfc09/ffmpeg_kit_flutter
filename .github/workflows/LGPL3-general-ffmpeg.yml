@@ -7,20 +7,16 @@ on:
   workflow_dispatch:
   push:
     paths:
+      - ".github/workflows/LGPL3-desktop-ffmpeg.yml"
+      - ".github/workflows/LGPL3-mobile-ffmpeg.yml"
       - ".github/workflows/LGPL3-android-ffmpeg.yml"
       - ".github/workflows/LGPL3-xframework-ffmpeg.yml"
-      - ".github/workflows/LGPL3-desktop-ffmpeg.yml"
       - ".github/workflows/LGPL3-general-ffmpeg.yml"
 
 jobs:
-  run-android:
-    name: Run Android Workflow
-    uses: ./.github/workflows/LGPL3-android-ffmpeg.yml
-    secrets: inherit
-
-  run-ios:
-    name: Run iOS Workflow
-    uses: ./.github/workflows/LGPL3-xframework-ffmpeg.yml
+  run-mobile:
+    name: Run Mobile Workflow
+    uses: ./.github/workflows/LGPL3-mobile-ffmpeg.yml
     secrets: inherit
 
   run-desktop:
@@ -30,7 +26,7 @@ jobs:
 
   publish-general:
     name: Publish General Release
-    needs: [run-android, run-ios, run-desktop]
+    needs: [run-mobile, run-desktop]
     runs-on: ubuntu-24.04
     steps:
       - name: Download Android Artifacts
@@ -60,25 +56,41 @@ jobs:
           find release-assets -maxdepth 3 -type f | sort
           test -n "$(find release-assets -type f -print -quit)"
 
+      - name: Prepare All Release Files
+        run: |
+          set -euo pipefail
+          SHORT_SHA="${GITHUB_SHA::7}"
+          STAMP="${SHORT_SHA}-run${GITHUB_RUN_ID}-a${GITHUB_RUN_ATTEMPT}"
+          mkdir -p release-publish
+
+          while IFS= read -r file; do
+            rel="${file#release-assets/}"
+            platform="${rel%%/*}"
+            base="$(basename "$file")"
+            cp "$file" "release-publish/${platform}-${STAMP}-${base}"
+          done < <(find release-assets -type f | sort)
+
+          tar -czf "ffmpeg-all-${STAMP}.tar.gz" -C release-assets .
+
       - name: Upload General Artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ffmpeg-general-bundle
           if-no-files-found: error
           path: |
-            release-assets
+            release-publish/*
+            ffmpeg-all-*.tar.gz
 
       - name: Publish to GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
-          tag_name: General
-          name: General FFmpeg
+          tag_name: all
+          name: All FFmpeg
           target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
-          overwrite_files: true
+          overwrite_files: false
           files: |
-            release-assets/android/*
-            release-assets/ios/*
-            release-assets/desktop/*
+            release-publish/*
+            ffmpeg-all-*.tar.gz

@@ -314,6 +314,19 @@ jobs:
           path: |
             ffmpeg-desktop-${{ matrix.target }}-n8.0.1.tar.gz
 
+      - name: Publish ${{ matrix.target }} Release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
+          tag_name: ${{ matrix.target }}
+          name: ${{ matrix.target }} FFmpeg
+          target_commitish: ${{ github.sha }}
+          prerelease: true
+          generate_release_notes: true
+          overwrite_files: true
+          files: |
+            ffmpeg-desktop-${{ matrix.target }}-n8.0.1.tar.gz
+
   build-macos:
     name: Build macOS FFmpeg
     runs-on: macos-14
@@ -388,33 +401,15 @@ jobs:
           path: |
             ffmpeg-desktop-macos-n8.0.1.tar.gz
 
-  release-desktop:
-    name: Publish Desktop Release
-    needs: [build-linux-windows, build-macos]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Download Packed Desktop Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          pattern: release-desktop-*
-          merge-multiple: true
-          path: release-assets
-
-      - name: Check Release Assets
-        run: |
-          set -euo pipefail
-          ls -lah release-assets
-          test -n "$(find release-assets -maxdepth 1 -type f -name '*.tar.gz' -print -quit)"
-
-      - name: Publish to GitHub Release
+      - name: Publish macos Release
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.RELEASE_TOKEN != '' && secrets.RELEASE_TOKEN || github.token }}
-          tag_name: desktop
-          name: Desktop FFmpeg
+          tag_name: macos
+          name: macOS FFmpeg
           target_commitish: ${{ github.sha }}
           prerelease: true
           generate_release_notes: true
           overwrite_files: true
           files: |
-            release-assets/*.tar.gz
+            ffmpeg-desktop-macos-n8.0.1.tar.gz

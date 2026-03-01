@@ -116,7 +116,8 @@ jobs:
             cp "$aar" "release/android/$safe_name"
           done < "$AAR_LIST_FILE"
 
-          [ -f build.log ] && cp build.log release/android/
+          [ -f build.log ] && cp build.log android-build.log
+          [ -f android-build.log ] && cp android-build.log release/android/
           tar -czf ffmpegkit-android-aar.tar.gz -C release android
 
       - name: Upload Android Artifacts
@@ -126,7 +127,7 @@ jobs:
           if-no-files-found: error
           path: |
             ffmpegkit-android-aar.tar.gz
-            build.log
+            android-build.log
 
       - name: Generate Release Metadata
         id: release_meta
@@ -149,7 +150,7 @@ jobs:
           overwrite_files: true
           files: |
             ffmpegkit-android-aar.tar.gz
-            build.log
+            android-build.log
 
       - name: Print Build Logs on Failure
         if: failure()

@@ -81,6 +81,7 @@ jobs:
           done < "$XCF_LIST_FILE"
 
           ditto -c -k --sequesterRsrc --keepParent artifacts/ios-xcframework ffmpegkit-ios-xcframework.zip
+          [ -f build.log ] && cp build.log ios-build.log
 
       - name: Upload iOS Artifacts
         uses: actions/upload-artifact@v4
@@ -89,7 +90,7 @@ jobs:
           if-no-files-found: error
           path: |
             ffmpegkit-ios-xcframework.zip
-            build.log
+            ios-build.log
 
       - name: Generate Release Metadata
         id: release_meta
@@ -112,7 +113,7 @@ jobs:
           overwrite_files: true
           files: |
             ffmpegkit-ios-xcframework.zip
-            build.log
+            ios-build.log
 
       - name: Print Build Logs on Failure
         if: failure()

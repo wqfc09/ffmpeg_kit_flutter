@@ -1,0 +1,19 @@
+name: FFmpeg-LGPL3-Mobile
+
+permissions:
+  contents: write
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  run-android:
+    name: Run Android Workflow
+    uses: ./.github/workflows/LGPL3-android-ffmpeg.yml
+    secrets: inherit
+
+  run-ios:
+    name: Run iOS Workflow
+    uses: ./.github/workflows/LGPL3-xframework-ffmpeg.yml
+    secrets: inherit
